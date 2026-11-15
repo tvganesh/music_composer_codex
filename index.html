@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Sketch Composer</title><link rel="stylesheet" href="style.css">
+  <title>Sketch Composer</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=0.3.1">
 </head>
 <body>
   <main>
-    <header><span class="eyebrow">A SMALL COMPOSING WORKSPACE · V0.2</span><h1>A sketch into a melody.</h1><p>Find an idea, shape a song around it, then take it into Logic Pro.</p></header>
+    <header><span class="eyebrow">A SMALL COMPOSING WORKSPACE · V0.3.1</span><h1>A sketch into a melody.</h1><p>Find an idea, shape a song around it, then take it into Logic Pro.</p></header>
     <div class="workspace">
       <section class="panel inputs" aria-labelledby="sketch-title">
         <h2 id="sketch-title">Your musical sketch</h2>
@@ -28,13 +28,21 @@
         <p class="hint" id="harmony-help">Intermediate adds just two seventh chords and one modal chord across the song, in addition to any advanced chords you entered yourself.</p>
         <section id="song" hidden aria-label="Suggested song arrangement">
           <h3>Intro → Verse → Chorus → Verse → Ending</h3>
-          <p class="hint">32 bars. Select a section to inspect and hear it. Changing the harmony option rebuilds this arrangement from your original idea.</p>
+          <p class="hint">32 bars. Select a section, then click a chord below to try an alternative. Changing the harmony option rebuilds the song and clears chord edits.</p>
           <div id="sections" class="sections" role="group" aria-label="Song sections"></div>
           <p id="section-description" class="hint"></p><ul id="suggestions" class="suggestions"></ul>
-          <div class="song-actions"><button id="original" type="button">Back to original idea</button><button id="play-song" type="button">▶ Play whole song</button><button id="export-song" type="button">Download song MIDI ↓</button></div>
+          <div class="song-actions"><button id="original" type="button">Back to original idea</button><button id="undo" type="button" disabled>Undo chord change</button><button id="play-song" type="button">▶ Play whole song</button><button id="export-song" type="button">Download song MIDI ↓</button></div>
         </section>
         <p id="view-label" class="eyebrow">ORIGINAL IDEA · 8 BARS</p>
+        <p id="chord-guide" class="hint"></p>
+        <button id="start-chord-edit" type="button">Arrange this idea to edit chords</button>
         <div id="chord-strip" class="chord-strip" aria-label="Chords by bar"></div>
+        <section id="chord-editor" class="chord-editor" hidden aria-labelledby="chord-editor-title">
+          <h3 id="chord-editor-title">Try a chord</h3><p id="chord-editor-help" class="hint"></p>
+          <div id="chord-choices" class="chord-choices"></div>
+          <div id="preview-actions" hidden><p class="hint">Preview only. Keep this change to include it in your MIDI export.</p><button id="keep-chord" type="button" class="primary">Keep this change</button> <button id="discard-chord" type="button">Discard preview</button></div>
+          <button id="close-editor" type="button">Close chord choices</button>
+        </section>
         <div class="roll-wrap"><svg id="roll" viewBox="0 0 880 280" role="img" aria-label="Melody piano roll: pitch vertically, eight bars horizontally"></svg></div>
         <div class="transport"><button id="play" class="primary" type="button">▶ Play</button><button id="stop" type="button" disabled>Stop</button><label class="check"><input id="accompaniment" type="checkbox" checked> Hear chords</label><button id="export" type="button">Download MIDI ↓</button></div>
         <p id="status" class="hint" role="status" aria-live="polite"></p>
@@ -42,6 +50,6 @@
     </div>
     <footer>Built from musical rules: repeating rhythms, melodic contours and chord tones. Preview uses a simple synth; choose your instruments in Logic Pro. <span>Nothing is uploaded.</span></footer>
   </main>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=0.3.1"></script>
 </body>
 </html>

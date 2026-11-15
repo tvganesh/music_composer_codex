@@ -1,4 +1,4 @@
-# Sketch Composer · v0.2
+# Sketch Composer · v0.3
 
 A small local composer that turns a key, scale and chord progression into three eight-bar melody ideas. Listen, compare, and export editable MIDI for Logic Pro.
 
@@ -41,6 +41,14 @@ Richer harmony suggests:
 - **Diminished approaches:** a half-bar diminished triad rooted a semitone below its next chord.
 - **Chromatic passing chords:** a half-bar major triad moving up a semitone into its destination.
 
+## Change one chord at a time
+
+After arranging an idea, select a section and click a chord above the piano roll. Choose from up to three alternatives: **Keep it simple**, **Add warmth**, or **Add contrast**. Options that match the current chord are omitted. Each option previews the section with the altered chord and fitted melody; enable **Hear chords** to hear the harmony too.
+
+Click **Keep this change** to apply it, or **Discard preview** to return to your arrangement. Closing the editor or selecting another chord/section also discards the unkept preview. Downloads and whole-song playback are disabled while a preview is pending. Normal Play replays the preview. Kept changes appear in section and full-song playback and MIDI exports.
+
+**Undo chord change** reverses the most recent kept change, including its melody, and supports multiple steps. Only the selected chord's time span changes; other chords and sections stay intact. In richer arrangements this may be half a bar. The original idea remains untouched. Switching ideas, generating again, or rebuilding the arrangement clears chord edits and Undo history. Edits are kept only in the current browser session; download MIDI before leaving.
+
 Two chords joined by an arrow within one bar each occupy two beats. The selected idea's rhythm and contour provide the melody template. Strong or long notes move to nearby chord tones; featured advanced chords use chord tones throughout. Sustained notes split at chord changes as needed. The chorus shifts the melodic register up an octave before fitting its notes; the ending holds the tonic over the tonic chord. This is conservative reharmonisation, not a model trained on songs. Nearest-note adjustment can change the contour, and these template suggestions still need listening and musical judgement.
 
 ## Core sketch scope (retained from v0.1)
@@ -57,7 +65,7 @@ This is a controllable starting point for hearing whether the workflow helps you
 
 ## Next iteration: listen first
 
-Try simple and richer harmony for the same idea and import one full-song export into Logic Pro. Judge **melodic shape**, **rhythm**, **fit with your chords** and **contrast between sections**. The form, bar lengths and chord choices are currently fixed suggestions; manual chord replacement and section-length editing are deferred. Keep model integration as a separate decision after this experiment.
+Start with intermediate harmony and try changing one chord at a time. Import one full-song export into Logic Pro. Judge **melodic shape**, **rhythm**, **fit with your chords** and **contrast between sections**. The form and bar lengths remain fixed; free-form chord entry within sections and section-length editing are deferred. Keep model integration as a separate decision after this experiment.
 
 ## Checks and files
 
@@ -70,3 +78,4 @@ Arrangement tests cover all supported roots in major and minor, unchanged source
 - `app.js`, `index.html`, `style.css`: controls, piano roll and Web Audio playback.
 - `composer.test.js`: engine and export checks.
 - `arrangement.js`, `arrangement.test.js`: song form, suggested harmony, melody adaptation and arrangement checks.
+- `chord-edit.js`, `chord-edit.test.js`: chord alternatives and isolated chord/melody changes.
