@@ -23,7 +23,7 @@ test('known scales and starter harmonies contain the expected notes', () => {
   assert.throws(() => compose({ scale:'constructor' }));
 });
 
-test('every scale creates repeatable phrases in every key, with audible characteristic notes', () => {
+test('every scale creates repeatable phrases in every key, without forcing characteristic notes', () => {
   for (const key of Object.keys(ROOTS)) for (const scale of Object.keys(SCALES)) {
     const pcs = scalePitches(ROOTS[key], scale), chords = matchingChords(ROOTS[key], scale);
     const harmonyPcs = (SCALES[scale].harmonyIntervals || SCALES[scale].intervals).map(n => (ROOTS[key] + n) % 12);
@@ -45,7 +45,6 @@ test('every scale creates repeatable phrases in every key, with audible characte
         if (n.start % 4 === 0 || n.start % 4 === 2) assert.ok(piece.progression[Math.floor(n.start / 4) % 4].tones.includes(n.pitch % 12));
       }
       assert.equal(piece.melody.at(-1).pitch % 12, ROOTS[key]);
-      if (!['major', 'minor'].includes(scale)) assert.ok(piece.melody.some(n => n.pitch % 12 === (ROOTS[key] + SCALES[scale].colour) % 12));
       assert.ok(piece.harmony.every(n => harmonyPcs.includes(n.pitch % 12)));
     }
   }
@@ -80,18 +79,25 @@ test('simple arrangements preserve the selected scale, while all harmony levels 
   }
 });
 
-test('minor blues blue notes stay short, resolve by a semitone and retain a six-note melody', () => {
-  for (const key of Object.keys(ROOTS)) for (const seed of [1, 19, 42, 77]) {
+test('minor blues uses blue notes only as short stepwise connections', () => {
+  let blueCount = 0, withoutBlue = 0;
+  for (const key of Object.keys(ROOTS)) for (let seed = 1; seed <= 30; seed++) {
     const root = ROOTS[key], piece = compose({ key, scale:'blues', chords:matchingChords(root, 'blues'), seed });
-    for (const bar of [1, 5]) {
-      const index = piece.melody.findIndex(n => Math.floor(n.start / 4) === bar && n.start % 4 !== 0 && n.start % 4 !== 2 && n.duration < 1);
-      const blue = piece.melody[index], next = piece.melody[index + 1];
-      assert.equal(blue.pitch % 12, (root + 6) % 12);
-      assert.ok(blue.duration < .5); assert.equal(Math.abs(next.pitch - blue.pitch), 1);
+    const blues = piece.melody.filter(n => n.pitch % 12 === (root + 6) % 12);
+    if (!blues.length) withoutBlue++;
+    for (const blue of blues) {
+      blueCount++;
+      const index = piece.melody.indexOf(blue), before = piece.melody[index - 1], next = piece.melody[index + 1];
+      assert.ok(blue.duration < .5); assert.notEqual(blue.start % 2, 0);
+      assert.equal(Math.abs(next.pitch - blue.pitch), 1);
+      assert.equal(Math.abs(before.pitch - blue.pitch), 1);
+      assert.ok(next.start - blue.start <= .5);
     }
-    for (const level of ['simple', 'intermediate', 'rich']) {
+    if (seed <= 3) for (const level of ['simple', 'intermediate', 'rich']) {
       const song = arrange(piece, { level });
       assert.ok(song.melody.every(n => scalePitches(root, 'blues').includes(n.pitch % 12)));
     }
   }
+  assert.ok(blueCount > 0, 'some natural connections should use the blue note');
+  assert.ok(withoutBlue > 0, 'a blue note should not be forced into every phrase');
 });

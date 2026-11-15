@@ -1,7 +1,7 @@
-import { compose, midiBytes, noteName, ROOTS, parseChords } from './composer.js?v=0.4.1';
-import { scaleInfo, scalePitches, matchingChords } from './scales.js?v=0.4.1';
-import { arrange } from './arrangement.js?v=0.4.1';
-import { chordChoices, changeChord } from './chord-edit.js?v=0.4.1';
+import { compose, midiBytes, noteName, ROOTS, parseChords } from './composer.js?v=0.5.0';
+import { scaleInfo, scalePitches, matchingChords } from './scales.js?v=0.5.0';
+import { arrange } from './arrangement.js?v=0.5.0';
+import { chordChoices, changeChord } from './chord-edit.js?v=0.5.0';
 const $ = id => document.getElementById(id);
 let ideas = [], selected = 0, audio, voices = [], timer, frame;
 let song = null, sectionIndex = -1, playbackVersion = 0;
@@ -35,6 +35,16 @@ function render() {
   });
   renderSong();
   $('view-label').textContent = `${sectionIndex < 0 ? 'Original idea' : piece.name} · ${piece.bars} bars`;
+  $('phrase-map').replaceChildren(); $('phrase-map').hidden = sectionIndex >= 0;
+  if (sectionIndex < 0) for (const phrase of piece.phrases || []) {
+    const span = document.createElement('span'); span.textContent = `${phrase.role} · ${phrase.start / 4 + 1}–${(phrase.start + phrase.beats) / 4}`;
+    $('phrase-map').append(span);
+  }
+  $('phrase-summary').textContent = sectionIndex >= 0
+    ? 'The arrangement keeps the idea’s rhythm and breathing spaces while fitting notes to the chords.'
+    : piece.ending === 'open'
+      ? 'A two-bar idea grows into a longer answer. This ending stays on your last chord; finish your chord sketch on the home chord for a settled ending.'
+      : 'A two-bar idea grows into a longer answer. Gaps in the piano roll are breathing spaces; the last note settles on the home note.';
   $('chord-guide').textContent = sectionIndex < 0
     ? 'These are the original sketch chords. Arrange this idea to try chord alternatives in a song section.'
     : 'Editable chords: click a chord button below to hear alternatives. Each button shows one chord in this section.';

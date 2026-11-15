@@ -1,4 +1,4 @@
-import { SCALES, scaleInfo, scalePitches } from './scales.js?v=0.4.1';
+import { SCALES, scaleInfo, scalePitches } from './scales.js?v=0.5.0';
 export const ROOTS = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 };
 const QUALITIES = { '': [0, 4, 7], m: [0, 3, 7], dim: [0, 3, 6], aug: [0, 4, 8], '7': [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10] };
 export function parseChords(text) {
@@ -21,52 +21,76 @@ export function compose({ key = 'A', scale = 'minor', chords = 'Am F C E', tempo
   const progression = parseChords(chords), rng = random(seed);
   const pcs = scalePitches(ROOTS[key], scale);
   const pick = values => values[Math.floor(rng() * values.length)];
-  const patterns = [[1, .5, .5, 1, 1], [.5, .5, 1, 1, 1], [1.5, .5, 1, 1], [1, 1, 2]];
-  const rhythms = [pick(patterns), pick(patterns)];
-  if (!['major', 'minor'].includes(scale)) rhythms[1] = [1, .5, .5, 1, 1];
-  const contour = Array.from({ length: 6 }, () => pick([-2, -1, 0, 1, 2]));
+  const root = ROOTS[key], intervals = scaleInfo(scale).intervals;
+  // A two-bar rhythm is reused, with a breath at its end and a longer final answer.
+  const opening = pick([
+    [[0, 1], [1, .5], [1.5, .5], [2, 1], [3, .5]],
+    [[0, .5], [.5, .5], [1.5, .5], [2, 1], [3, .5]],
+    [[0, 1.5], [1.5, .5], [2, .5], [3, .5]]
+  ]);
+  const reply = pick([
+    [[0, 1], [1.5, .5], [2, 1]],
+    [[0, .5], [1, .5], [2, 1.25]],
+    [[0, 1.5], [2, 1]]
+  ]);
+  const shape = pick([[0, 1, 2, 1, 0], [0, 2, 1, 3, 2], [2, 1, 0, 1, 0], [0, 1, 3, 2, 1]]);
+  const replyShape = [shape[shape.length - 1], 1, 0];
   const melody = [], harmony = [];
-  let previous = 69 + ROOTS[key] - 9;
+  const scalePitch = degree => 60 + root + intervals[((degree % intervals.length) + intervals.length) % intervals.length] + 12 * Math.floor(degree / intervals.length);
+  const pitches = Array.from({ length:25 }, (_, i) => 60 + i);
+  let previous = 60 + root, repeated = 0;
   for (let bar = 0; bar < 8; bar++) {
     const chord = progression[bar % progression.length];
     chord.tones.forEach((pc, i) => {
       let pitch = 48 + pc;
       if (i && pitch < 48 + chord.root) pitch += 12;
-      harmony.push({ pitch, start: bar * 4, duration: 3.85, velocity: 53 });
+      harmony.push({ pitch, start:bar * 4, duration:3.85, velocity:53 });
     });
-    let beat = 0;
-    const rhythm = bar === 7 ? [1, 1, 2] : rhythms[bar % 2];
-    rhythm.forEach((duration, i) => {
-      const final = bar === 7 && i === rhythm.length - 1;
-      // Chord tones anchor beats 1 and 3; scale tones connect the anchors.
-      const bluesAnchors = chord.tones.filter(pc => pcs.includes(pc));
-      const anchors = scale === 'blues' ? (bluesAnchors.length ? bluesAnchors : pcs) : chord.tones;
-      const allowed = final ? [ROOTS[key]] : (beat === 0 || beat === 2 ? anchors : pcs);
-      const target = previous + contour[i % contour.length] * (bar >= 4 && bar < 6 ? 2 : 1);
-      const candidates = Array.from({ length: 25 }, (_, n) => n + 60).filter(n => allowed.includes(n % 12));
-      const ranked = candidates.map(pitch => ({ pitch, score: Math.abs(pitch - target) + rng() * 2.5 })).sort((a, b) => a.score - b.score);
+    const rhythm = bar === 7 ? [[0, .75], [1, .75], [2, 2]] : bar % 2 ? reply : opening;
+    const shared = chord.tones.filter(pc => pcs.includes(pc));
+    const anchors = scale === 'blues' ? (shared.length ? shared : pcs) : chord.tones;
+    rhythm.forEach(([beat, span], i) => {
+      const phraseEnd = bar % 2 === 1 && i === rhythm.length - 1;
+      const question = bar === 1 && phraseEnd;
+      const final = bar === 7 && phraseEnd;
+      const anchor = beat === 0 || beat === 2 || span >= 1.25;
+      let allowed = anchor ? anchors : pcs;
+      // Blue notes are added only as short, stepwise connections in the pass below.
+      if (scale === 'blues') allowed = allowed.filter(pc => pc !== (root + 6) % 12);
+      if (!allowed.length) allowed = pcs.filter(pc => scale !== 'blues' || pc !== (root + 6) % 12);
+      if (question && allowed.some(pc => pc !== root)) allowed = allowed.filter(pc => pc !== root);
+      if ((final || bar === 3 && phraseEnd) && anchors.includes(root)) allowed = [root];
+      let degree = (bar % 2 ? replyShape : shape)[i % (bar % 2 ? replyShape.length : shape.length)];
+      if (bar === 4 || bar === 5) degree += bar === 4 ? 2 : 1;
+      if (bar === 2 && i === rhythm.length - 1) degree += 1;
+      if (bar === 6 && i === rhythm.length - 1) degree -= 1;
+      if (phraseEnd) degree = question ? 2 : 0;
+      const target = scalePitch(degree);
+      const candidates = pitches.filter(p => allowed.includes(p % 12));
+      const ranked = candidates.map(pitch => {
+        const leap = Math.abs(pitch - previous);
+        const repeatPenalty = pitch === previous ? (repeated >= 1 ? 2.5 : .6) : 0;
+        const colourBonus = !anchor && pitch % 12 === (root + scaleInfo(scale).colour) % 12 ? .25 : 0;
+        return { pitch, score:Math.abs(pitch - target) + .35 * leap + Math.max(0, leap - 5) * 1.8 + repeatPenalty - colourBonus + rng() * .8 };
+      }).sort((a, b) => a.score - b.score);
       const pitch = ranked[0].pitch;
-      melody.push({ pitch, start: bar * 4 + beat, duration: duration * .9, velocity: beat === 0 ? 88 : 76 });
+      repeated = pitch === previous ? repeated + 1 : 0;
+      const velocity = Math.min(100, (beat === 0 ? 86 : beat === 2 ? 81 : 73) + (bar >= 4 && bar < 6 ? 4 : 0) - (phraseEnd ? 5 : 0));
+      melody.push({ pitch, start:bar * 4 + beat, duration:span * (phraseEnd ? .94 : .9), velocity });
       previous = pitch;
-      beat += duration;
     });
   }
-  // Make the scale's colour audible in two short passing notes, not a scale run.
-  const colour = (ROOTS[key] + scaleInfo(scale).colour) % 12;
-  for (const bar of [1, 5]) {
-    const note = melody.find(n => Math.floor(n.start / 4) === bar && n.start % 4 !== 0 && n.start % 4 !== 2 && n.duration < 1);
-    if (note) {
-      const candidates = Array.from({ length:25 }, (_, i) => 60 + i).filter(p => p % 12 === colour);
-      note.pitch = candidates.sort((a, b) => Math.abs(a - note.pitch) - Math.abs(b - note.pitch))[0];
-      if (scale === 'blues') {
-        const next = melody[melody.indexOf(note) + 1];
-        // The flattened fifth is a passing colour, followed by a neighbouring fourth/fifth.
-        const neighbours = [note.pitch - 1, note.pitch + 1].filter(p => p >= 60 && p <= 84);
-        if (next && neighbours.length) next.pitch = neighbours.sort((a, b) => Math.abs(a - next.pitch) - Math.abs(b - next.pitch))[0];
-      }
+  if (scale === 'blues') {
+    const blue = (root + 6) % 12;
+    for (let i = 1; i < melody.length - 1; i++) {
+      const before = melody[i - 1], note = melody[i], after = melody[i + 1];
+      const middle = (before.pitch + after.pitch) / 2;
+      if (note.start % 2 !== 0 && note.duration < .5 && after.start - note.start <= .5 && Math.abs(before.pitch - after.pitch) === 2 && middle % 12 === blue) note.pitch = middle;
     }
   }
-  return { key, scale, tempo, seed, bars: 8, beats: 32, progression, melody, harmony };
+  const ending = melody.at(-1).pitch % 12 === root ? 'resolved' : 'open';
+  return { key, scale, tempo, seed, bars:8, beats:32, progression, melody, harmony, ending,
+    phrases:[{ start:0, beats:8, role:'Question' }, { start:8, beats:8, role:'Variation' }, { start:16, beats:8, role:'Development' }, { start:24, beats:8, role:'Answer' }] };
 }
 export const noteName = pitch => ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'][pitch % 12] + (Math.floor(pitch / 12) - 1);
 

@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Sketch Composer</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=0.4.1">
+  <title>Sketch Composer</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=0.5.0">
 </head>
 <body>
   <main>
-    <header><span class="eyebrow">A SMALL COMPOSING WORKSPACE · V0.4.1</span><h1>A sketch into a melody.</h1><p>Find an idea, shape a song around it, then take it into Logic Pro.</p></header>
+    <header><span class="eyebrow">A SMALL COMPOSING WORKSPACE · V0.5.0</span><h1>A sketch into a melody.</h1><p>Find an idea, shape a song around it, then take it into Logic Pro.</p></header>
     <div class="workspace">
       <section class="panel inputs" aria-labelledby="sketch-title">
         <h2 id="sketch-title">Your musical sketch</h2>
@@ -36,6 +36,8 @@
           <div class="song-actions"><button id="original" type="button">Back to original idea</button><button id="undo" type="button" disabled>Undo chord change</button><button id="play-song" type="button">▶ Play whole song</button><button id="export-song" type="button">Download song MIDI ↓</button></div>
         </section>
         <p id="view-label" class="eyebrow">ORIGINAL IDEA · 8 BARS</p>
+        <div id="phrase-map" class="phrase-map" role="group" aria-label="Two-bar phrase structure"></div>
+        <p id="phrase-summary" class="hint"></p>
         <p id="chord-guide" class="hint"></p>
         <button id="start-chord-edit" type="button">Arrange this idea to edit chords</button>
         <div id="chord-strip" class="chord-strip" aria-label="Chords by bar"></div>
@@ -52,6 +54,6 @@
     </div>
     <footer>Built from musical rules: repeating rhythms, melodic contours and chord tones. Preview uses a simple synth; choose your instruments in Logic Pro. <span>Nothing is uploaded.</span></footer>
   </main>
-  <script type="module" src="app.js?v=0.4.1"></script>
+  <script type="module" src="app.js?v=0.5.0"></script>
 </body>
 </html>
