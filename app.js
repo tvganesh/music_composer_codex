@@ -1,16 +1,24 @@
-import { compose, midiBytes, noteName, ROOTS, parseChords } from './composer.js?v=0.6.1';
-import { scaleInfo, scalePitches, matchingChords } from './scales.js?v=0.6.1';
-import { arrange } from './arrangement.js?v=0.6.1';
-import { chordChoices, changeChord } from './chord-edit.js?v=0.6.1';
-import { saveProject, openProject, MAX_PROJECT_BYTES } from './project.js?v=0.6.1';
+import { compose, midiBytes, noteName, ROOTS, parseChords } from './composer.js?v=0.7.0';
+import { scaleInfo, scalePitches, matchingChords } from './scales.js?v=0.7.0';
+import { arrange } from './arrangement.js?v=0.7.0';
+import { chordChoices, changeChord } from './chord-edit.js?v=0.7.0';
+import { saveProject, openProject, MAX_PROJECT_BYTES } from './project.js?v=0.7.0';
+import { applyRefinement } from './refinement.js?v=0.7.0';
 const $ = id => document.getElementById(id);
 let ideas = [], selected = 0, audio, voices = [], timer, frame;
 let song = null, sectionIndex = -1, playbackVersion = 0;
 let editingEvent = -1, draftSong = null, undoStack = [];
 let projectSaving = false;
-const currentPiece = () => sectionIndex < 0 ? ideas[selected] : (draftSong || song).sections[sectionIndex];
-function resetEdits() { editingEvent = -1; draftSong = null; undoStack = []; }
-function closeEditor() { editingEvent = -1; draftSong = null; }
+let refinement = null, refinePreview = -1, refining = false, refineController = null, melodyBackup = null;
+let modelReady = false, modelMessage = 'Checking local model…';
+const basePiece = () => sectionIndex < 0 ? ideas[selected] : (draftSong || song).sections[sectionIndex];
+const currentPiece = () => refinement && refinePreview >= 0 ? { ...refinement.base, melody:refinement.revisions[refinePreview].melody } : basePiece();
+function clearRefinement(keepBackup = false) {
+  refineController?.abort(); refineController = null; refinement = null; refinePreview = -1; refining = false;
+  if (!keepBackup) melodyBackup = null;
+}
+function resetEdits() { editingEvent = -1; draftSong = null; undoStack = []; clearRefinement(); }
+function closeEditor() { editingEvent = -1; draftSong = null; clearRefinement(); }
 const svgNS = 'http://www.w3.org/2000/svg';
 function element(name, attrs, text) {
   const el = document.createElementNS(svgNS, name);
@@ -62,12 +70,13 @@ function render() {
       const button = document.createElement('button'); button.type = 'button'; button.textContent = e.chord.name;
       button.setAttribute('aria-label', `${e.chord.name}, bar ${bar + 1}, beat ${e.start % 4 + 1}: try another chord`);
       button.setAttribute('aria-pressed', editingEvent === i);
-      button.onclick = () => { draftSong = null; editingEvent = i; render(); $('chord-choices').querySelector('button')?.focus(); };
+      button.onclick = () => { clearRefinement(); draftSong = null; editingEvent = i; render(); $('chord-choices').querySelector('button')?.focus(); };
       span.append(button);
     }); else span.textContent = piece.progression[bar % piece.progression.length].name;
     $('chord-strip').append(span);
   }
   renderChordEditor();
+  renderRefinement();
   $('roll').replaceChildren();
   const low = Math.min(...piece.melody.map(n => n.pitch)) - 2, high = Math.max(...piece.melody.map(n => n.pitch)) + 2;
   const row = 250 / (high - low + 1);
@@ -77,19 +86,22 @@ function render() {
     if (pitch % 12 === 0 || pitch === low) element('text', { x:4, y:y + row * .8, fill:'#788377', 'font-size':10 }, noteName(pitch));
   }
   for (let beat = 0; beat <= piece.beats; beat++) element('line', { x1:40 + beat * pixelsPerBeat, x2:40 + beat * pixelsPerBeat, y1:10, y2:260, stroke:beat % 4 === 0 ? '#cdd6c8' : '#e5e9df' });
-  piece.melody.forEach(n => {
-    const rect = element('rect', { x:40 + n.start * pixelsPerBeat, y:11 + (high - n.pitch) * row, width:n.duration * pixelsPerBeat, height:Math.max(3, row - 2), rx:3, fill:'#628665' });
+  piece.melody.forEach((n, i) => {
+    const original = refinePreview >= 0 ? refinement.base.melody[i] : null;
+    const changed = original && (n.pitch !== original.pitch || n.duration !== original.duration);
+    const rect = element('rect', { x:40 + n.start * pixelsPerBeat, y:11 + (high - n.pitch) * row, width:n.duration * pixelsPerBeat, height:Math.max(3, row - 2), rx:3, fill:changed ? '#b4814b' : '#628665' });
     const title = document.createElementNS(svgNS, 'title'); title.textContent = `${noteName(n.pitch)}, bar ${Math.floor(n.start / 4) + 1}`; rect.append(title);
   });
-  $('status').textContent = draftSong ? 'Preview only. Listen, then keep or discard the chord change.' : `${sectionIndex < 0 ? `Idea ${selected + 1}` : piece.name} ready. MIDI includes melody and chords.`;
+  $('status').textContent = refinePreview >= 0 ? 'Melody preview only. Keep this revision before saving or exporting.' : draftSong ? 'Preview only. Listen, then keep or discard the chord change.' : `${sectionIndex < 0 ? `Idea ${selected + 1}` : piece.name} ready. MIDI includes melody and chords.`;
 }
 function renderChordEditor() {
   const visible = song && sectionIndex >= 0 && editingEvent >= 0;
   $('chord-editor').hidden = !visible;
   $('undo').disabled = !undoStack.length;
-  $('export').disabled = !!draftSong; $('export-song').disabled = !!draftSong; $('play-song').disabled = !!draftSong;
-  $('save-project').disabled = !!draftSong || projectSaving;
-  $('save-project').title = draftSong ? 'Keep or discard the chord preview before saving.' : 'Save your ideas, arrangement and kept chord edits to data/.';
+  const previewing = !!draftSong || refinePreview >= 0;
+  $('export').disabled = previewing; $('export-song').disabled = previewing; $('play-song').disabled = previewing;
+  $('save-project').disabled = previewing || projectSaving;
+  $('save-project').title = previewing ? 'Keep or discard the preview before saving.' : 'Save your ideas, arrangement and kept chord edits to data/.';
   if (!visible) return;
   const section = song.sections[sectionIndex], event = section.events[editingEvent];
   $('chord-editor-title').textContent = `${section.name} · bar ${Math.floor(event.start / 4) + 1} · ${event.chord.name}`;
@@ -117,6 +129,71 @@ $('undo').onclick = () => {
   const previous = undoStack.pop(); if (!previous) return;
   song = previous.song; sectionIndex = previous.sectionIndex; closeEditor(); render(); $('status').textContent = 'Last chord change undone.';
 };
+function renderRefinement() {
+  const selectSection = !!song && sectionIndex < 0;
+  $('improve-melody').disabled = !modelReady || refining || !!draftSong || selectSection;
+  $('improve-melody').textContent = refining ? 'Working locally…' : 'Improve melody · experimental';
+  $('cancel-refinement').hidden = !refining;
+  $('check-model').hidden = modelReady;
+  $('undo-refinement').hidden = !melodyBackup;
+  $('refine-status').textContent = refining ? 'Qwen is creating two revisions locally. You can cancel; your original is unchanged.'
+    : selectSection ? 'Select a song section to refine its melody while preserving your arrangement and chords.' : modelMessage;
+  $('refine-results').hidden = !refinement;
+  if (!refinement) return;
+  $('refine-options').replaceChildren();
+  ['Original', 'Revision 1', 'Revision 2'].forEach((label, i) => {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+    button.setAttribute('aria-pressed', refinePreview === i - 1);
+    button.onclick = () => { refinePreview = i - 1; render(); $('refine-options').children[i]?.focus(); };
+    $('refine-options').append(button);
+  });
+  $('refine-description').textContent = refinePreview < 0 ? 'Original melody selected. The model’s suggestions have not been kept.'
+    : `Model suggestion: ${refinement.revisions[refinePreview].summary} (${refinement.revisions[refinePreview].changedNotes} notes edited.) Amber notes show proposed changes.`;
+  $('keep-refinement').disabled = refinePreview < 0;
+}
+async function checkLocalModel() {
+  try {
+    const info = await projectRequest('/api/model'); modelReady = !!info.ready; modelMessage = `${info.model}: ${info.message}`;
+  } catch { modelReady = false; modelMessage = 'Start the updated app with npm start and make sure Ollama is running, then check again.'; }
+  renderRefinement();
+}
+$('check-model').onclick = checkLocalModel;
+$('improve-melody').onclick = async () => {
+  if (refining || draftSong || !modelReady || song && sectionIndex < 0) return;
+  const source = structuredClone(basePiece());
+  clearRefinement(); editingEvent = -1; refining = true;
+  const controller = new AbortController(); refineController = controller; render();
+  try {
+    const response = await fetch('/api/refine', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ piece:source }), signal:controller.signal });
+    const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Local revision failed.');
+    if (refineController !== controller) return;
+    if (!Array.isArray(result.revisions) || result.revisions.length !== 2) throw new Error('The model did not return two revisions.');
+    result.revisions.forEach(revision => applyRefinement(ideas, song, selected, sectionIndex, revision));
+    refinement = { base:source, revisions:result.revisions }; modelMessage = `${result.model}: two validated suggestions ready. Compare them before choosing.`;
+  } catch (error) {
+    if (refineController !== controller) return;
+    modelMessage = error.name === 'AbortError' ? 'Revision cancelled. Your melody is unchanged.' : `Could not revise melody: ${error.message}`;
+  } finally {
+    if (refineController === controller) { refining = false; refineController = null; render(); }
+  }
+};
+$('cancel-refinement').onclick = () => { clearRefinement(); modelMessage = 'Revision cancelled. Your melody is unchanged.'; render(); };
+$('discard-refinement').onclick = () => { clearRefinement(); modelMessage = 'Suggestions discarded. Your melody is unchanged.'; render(); };
+$('keep-refinement').onclick = () => {
+  if (!refinement || refinePreview < 0) return;
+  try {
+    const next = applyRefinement(ideas, song, selected, sectionIndex, refinement.revisions[refinePreview]);
+    melodyBackup = { ideas, song, selected, sectionIndex, undoStack };
+    ideas = next.ideas; song = next.song; undoStack = []; clearRefinement(true);
+    modelMessage = 'Melody revision kept. Undo melody revision restores the previous version.'; render();
+  } catch (error) { modelMessage = error.message; renderRefinement(); }
+};
+$('undo-refinement').onclick = () => {
+  if (!melodyBackup) return;
+  const previous = melodyBackup; clearRefinement();
+  ({ ideas, song, selected, sectionIndex, undoStack } = previous);
+  modelMessage = 'Previous melody restored.'; render();
+};
 function renderSong() {
   $('song').hidden = !song;
   if (!song) return;
@@ -129,7 +206,7 @@ function renderSong() {
     button.append(title, chords); button.onclick = () => { closeEditor(); sectionIndex = i; render(); }; $('sections').append(button);
   });
   const section = sectionIndex < 0 ? null : song.sections[sectionIndex];
-  $('section-description').textContent = section ? `${section.description} ${section.edited ? 'Melody updated to fit your chord choices.' : `${section.adaptedNotes} melody notes adapted from the original idea.`}` : 'Original idea selected. Choose a song section to inspect its adapted melody.';
+  $('section-description').textContent = section ? `${section.description} ${section.edited ? 'Melody updated for this section.' : `${section.adaptedNotes} melody notes adapted from the original idea.`}` : 'Original idea selected. Choose a song section to inspect its adapted melody.';
   $('suggestions').replaceChildren();
   const seen = new Set();
   for (const e of section?.events || []) if (e.technique && !seen.has(e.technique + e.explanation)) {
@@ -217,7 +294,7 @@ function restoreWorkspace(state) {
   $('error').textContent = ''; updateScaleGuide(); render(); $('project-browser').hidden = true;
 }
 $('save-project').onclick = async () => {
-  if (draftSong || projectSaving) return;
+  if (draftSong || refinePreview >= 0 || projectSaving) return;
   projectSaving = true; $('save-project').disabled = true;
   try {
     const state = { ideas, selected, song, sectionIndex, harmony:$('harmony').value, accompaniment:$('accompaniment').checked,
@@ -226,7 +303,7 @@ $('save-project').onclick = async () => {
     $('project-status').textContent = `Saved to ${saved.path}. Each save creates a new file.`;
     if (!$('project-browser').hidden) await refreshProjects().catch(() => {});
   } catch (error) { $('project-status').textContent = `Could not save project: ${error.message}`; }
-  finally { projectSaving = false; $('save-project').disabled = !!draftSong; }
+  finally { projectSaving = false; $('save-project').disabled = !!draftSong || refinePreview >= 0; }
 };
 $('open-project').onclick = async () => {
   $('project-browser').hidden = false; $('load-project').disabled = true; $('saved-projects').replaceChildren();
@@ -277,3 +354,4 @@ $('matching-chords').onclick = () => {
 };
 updateScaleGuide();
 $('sketch').requestSubmit();
+checkLocalModel();

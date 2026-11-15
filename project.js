@@ -1,5 +1,5 @@
-import { ROOTS, parseChords } from './composer.js?v=0.6.1';
-import { scaleInfo } from './scales.js?v=0.6.1';
+import { ROOTS, parseChords } from './composer.js?v=0.7.0';
+import { scaleInfo } from './scales.js?v=0.7.0';
 
 export const MAX_PROJECT_BYTES = 2 * 1024 * 1024;
 const levels = ['simple', 'intermediate', 'rich'];
@@ -85,7 +85,7 @@ function validate(doc) {
 }
 
 export function saveProject(state) {
-  const doc = { format:'sketch-composer-project', version:1, appVersion:'0.6.1', state };
+  const doc = { format:'sketch-composer-project', version:1, appVersion:'0.7.0', state };
   validate(doc);
   const text = JSON.stringify(doc, null, 2) + '\n';
   check(new TextEncoder().encode(text).length <= MAX_PROJECT_BYTES, 'Project file is too large.');
@@ -96,4 +96,20 @@ export function openProject(text) {
   let doc;
   try { doc = JSON.parse(text); } catch { throw new Error('This file is not valid project JSON.'); }
   return validate(doc);
+}
+
+export function validateMelodySource(value) {
+  check(value && [4, 8].includes(value.bars), 'Choose a four- or eight-bar melody.');
+  piece(value, value.bars);
+  check(value.melody.length <= 128 && value.harmony.length <= 128, 'This melody is too large for a conservative revision.');
+  check(value.melody.every(n => n.pitch >= 60 && n.pitch <= (value.events ? 96 : 84)), 'Improve melody currently supports the app’s normal melody register.');
+  if (value.events !== undefined) {
+    check(list(value.events, value.bars, value.bars * 2), 'Invalid source chord events.');
+    let start = 0;
+    for (const event of value.events) {
+      check(event && event.start === start && number(event.duration) && event.duration > 0, 'Invalid source chord timing.');
+      chord(event.chord); start += event.duration;
+    }
+    check(start === value.beats, 'Source chords do not cover the melody.');
+  }
 }

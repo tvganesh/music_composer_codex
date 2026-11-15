@@ -3,9 +3,10 @@ import { promises as fs, constants } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { openProject, saveProject, MAX_PROJECT_BYTES } from './project.js?v=0.6.1';
+import { openProject, saveProject, MAX_PROJECT_BYTES, validateMelodySource } from './project.js?v=0.7.0';
+import { refineWithModel, modelStatus } from './local-model.js';
 
-const assets = new Set(['index.html', 'style.css', 'app.js', 'composer.js', 'arrangement.js', 'chord-edit.js', 'scales.js', 'project.js']);
+const assets = new Set(['index.html', 'style.css', 'app.js', 'composer.js', 'arrangement.js', 'chord-edit.js', 'scales.js', 'project.js', 'refinement.js']);
 const safeName = name => /^[A-Za-z0-9][A-Za-z0-9._-]{0,180}\.json$/.test(name);
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const json = (res, status, value) => { res.writeHead(status, { 'Content-Type':'application/json', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
@@ -17,10 +18,11 @@ function body(req) {
     req.on('error', reject);
   });
 }
-export async function createComposerServer(root = path.dirname(fileURLToPath(import.meta.url))) {
+export async function createComposerServer(root = path.dirname(fileURLToPath(import.meta.url)), { refiner = refineWithModel, status = modelStatus } = {}) {
   const data = path.join(root, 'data');
   await fs.mkdir(data, { recursive:true });
   if (path.dirname(await fs.realpath(data)) !== await fs.realpath(root)) throw new Error('data/ must be a directory inside this project.');
+  let refining = false;
   return http.createServer(async (req, res) => {
     try {
       const host = req.headers.host || '';
@@ -28,6 +30,21 @@ export async function createComposerServer(root = path.dirname(fileURLToPath(imp
       const url = new URL(req.url, `http://${host}`), route = url.pathname;
       if (route.startsWith('/api/')) {
         if (req.headers.origin && req.headers.origin !== `http://${host}`) throw fail(403, 'Open this app from the local server.');
+        if (route === '/api/model' && req.method === 'GET') return json(res, 200, await status());
+        if (route === '/api/refine' && req.method === 'POST') {
+          if (!req.headers['content-type']?.startsWith('application/json')) throw fail(415, 'Send a JSON melody.');
+          if (refining) throw fail(409, 'A melody revision is already running. Try again shortly.');
+          let piece;
+          try { piece = JSON.parse(await body(req)).piece; validateMelodySource(piece); }
+          catch (error) { throw fail(error.status || 400, error.message); }
+          if (refining) throw fail(409, 'A melody revision is already running. Try again shortly.');
+          refining = true;
+          const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 180000);
+          const cancelled = () => { if (!res.writableEnded) controller.abort(); }; res.on('close', cancelled);
+          try { return json(res, 200, await refiner(piece, { signal:controller.signal })); }
+          catch (error) { throw fail(controller.signal.aborted ? 504 : 502, controller.signal.aborted ? 'Melody revision cancelled or timed out. Try again.' : error.message === 'fetch failed' ? 'Cannot reach the local model. Start Ollama and try again.' : error.message); }
+          finally { clearTimeout(timer); res.off('close', cancelled); refining = false; }
+        }
         if (route === '/api/projects' && req.method === 'POST') {
           if (!req.headers['content-type']?.startsWith('application/json')) throw fail(415, 'Send a JSON project.');
           let state;
@@ -65,6 +82,7 @@ export async function createComposerServer(root = path.dirname(fileURLToPath(imp
       const type = asset.endsWith('.js') ? 'text/javascript' : asset.endsWith('.css') ? 'text/css' : 'text/html';
       res.writeHead(200, { 'Content-Type':type, 'Cache-Control':'no-store' }); res.end(req.method === 'HEAD' ? undefined : bytes);
     } catch (error) {
+      if (res.destroyed) return;
       const status = error.status || (['ENOENT', 'ELOOP'].includes(error.code) ? 404 : 500);
       json(res, status, { error:status === 500 ? 'Local server could not complete the request.' : error.message });
     }

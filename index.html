@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Sketch Composer</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=0.6.1">
+  <title>Sketch Composer</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=0.7.0">
 </head>
 <body>
   <main>
-    <header><span class="eyebrow">A SMALL COMPOSING WORKSPACE · V0.6.1</span><h1>A sketch into a melody.</h1><p>Find an idea, shape a song around it, then take it into Logic Pro.</p></header>
+    <header><span class="eyebrow">A SMALL COMPOSING WORKSPACE · V0.7.0</span><h1>A sketch into a melody.</h1><p>Find an idea, shape a song around it, then take it into Logic Pro.</p></header>
     <div class="project-actions" role="group" aria-label="Project files">
       <button id="save-project" type="button">Save project</button><button id="open-project" type="button">Open project…</button>
       <input id="project-file" type="file" accept=".json,application/json" hidden aria-label="Choose a Sketch Composer project">
@@ -38,6 +38,16 @@
       <section class="panel result" aria-labelledby="result-title">
         <div class="result-heading"><div><span class="eyebrow">YOUR IDEAS</span><h2 id="result-title">A little room to explore.</h2></div><span id="details" class="badge"></span></div>
         <div id="ideas" class="ideas" role="group" aria-label="Choose a melody"></div>
+        <section class="refine-panel" aria-label="Experimental melody editor">
+          <div class="refine-actions"><button id="improve-melody" type="button" disabled>Improve melody · experimental</button><button id="check-model" type="button">Check local model</button><button id="cancel-refinement" type="button" hidden>Cancel</button><button id="undo-refinement" type="button" hidden>Undo melody revision</button></div>
+          <p class="hint">Try two small revisions of this melody. Chords, note starts and phrase endings stay fixed. Select Original or a revision, then press Play to compare.</p>
+          <p id="refine-status" class="hint" role="status" aria-live="polite">Checking local model…</p>
+          <div id="refine-results" hidden>
+            <div id="refine-options" class="ideas" role="group" aria-label="Compare melody revisions"></div>
+            <p id="refine-description" class="hint"></p>
+            <button id="keep-refinement" type="button" class="primary" disabled>Keep this revision</button> <button id="discard-refinement" type="button">Discard revisions</button>
+          </div>
+        </section>
         <div class="arrange-controls"><label>Song harmony<select id="harmony" aria-describedby="harmony-help"><option value="simple">Simple · core progression</option><option value="intermediate" selected>Intermediate · a little colour</option><option value="rich">Richer · more adventurous</option></select></label><button id="arrange" type="button">Arrange selected idea ↗</button></div>
         <p class="hint" id="harmony-help">Intermediate adds two seventh chords and one borrowed chord. Simple best preserves your scale or mode; richer harmony deliberately adds outside notes.</p>
         <section id="song" hidden aria-label="Suggested song arrangement">
@@ -66,6 +76,6 @@
     </div>
     <footer>Built from musical rules: repeating rhythms, melodic contours and chord tones. Preview uses a simple synth; choose your instruments in Logic Pro. <span>Nothing is uploaded.</span></footer>
   </main>
-  <script type="module" src="app.js?v=0.6.1"></script>
+  <script type="module" src="app.js?v=0.7.0"></script>
 </body>
 </html>

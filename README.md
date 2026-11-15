@@ -1,4 +1,4 @@
-# Sketch Composer · v0.6.1
+# Sketch Composer · v0.7.0
 
 A small local composer that turns a key, scale and chord progression into three eight-bar melody ideas. Listen, compare, and export editable MIDI for Logic Pro.
 
@@ -22,6 +22,20 @@ Requires Node 18 or newer. Open **http://127.0.0.1:8000** in a modern browser. K
 4. Download a MIDI and import it into Logic Pro. The file contains named **Melody** and **Chords** tracks, tempo and 4/4 time. Assign instruments there. The preview sound is a basic oscillator synth.
 
 Changing inputs takes effect when you generate; the displayed key, tempo, chords and export continue to describe the selected generated idea until then. The chords checkbox affects preview only; MIDI always includes both tracks. MIDI downloads are not project saves; use **Save project** to resume in this app later.
+
+## Experimental local melody refinement
+
+The core composer stays rules-based. **Improve melody** optionally uses the installed **Qwen3-8B** model through your local Ollama service, at `127.0.0.1:11434`. No model training, cloud API or new npm dependency is required. Your Mac already has `qwen3:8b`; on a new setup install Ollama from its official source, start it, and run `ollama pull qwen3:8b` once. Run the app with `npm start` as usual. The normal composer works when Ollama is unavailable.
+
+1. Select an idea before arranging it, or select a section of an existing song. To preserve existing arrangements and chord edits, the original-idea view cannot be refined while a song exists; choose the relevant section instead.
+2. Click **Improve melody · experimental**. The local model proposes two alternatives: one with pitch edits, one with note-length edits. It revises the whole selected phrase rather than continuing it. Generation can take longer when the model first loads. Cancel leaves your current melody unchanged.
+3. Select **Original**, **Revision 1** or **Revision 2**, then press **Play** to compare. Amber notes show proposed changes. Model descriptions express intended effects, not a guarantee that the result sounds better.
+4. Click **Keep this revision**, or **Discard revisions**. Export and Save are disabled while a revised melody is being previewed. Kept notes appear in MIDI exports and saved projects. An arranged section's revision leaves its chords and other sections untouched.
+5. **Undo melody revision** restores the state immediately before keeping the revision, including its prior chord Undo history. This temporary Undo is cleared by changing idea/section, generating or arranging again, opening a project, starting another refinement or editing a chord. Unkept alternatives and Undo history are not saved. Save a project before experimenting if you want a lasting original version.
+
+The model selects numbered changes from an app-generated catalogue of permitted edits. It can change at most three notes, and never more than 20% of the melody. Pitch edits are separated and limited to nearby, harmonically permitted pitches. Length edits stay within narrow bounds and preserve breathing spaces. Note starts, dynamics, chords, total length, opening notes and phrase-ending notes remain fixed. Blue notes must stay short and resolved by step. The complete result is validated again before preview and before keeping it. There is one retry for invalid output; a failed attempt leaves the original untouched. Two suggestions are required—there is no disguised rules-based fallback.
+
+Only one model request runs at a time, with a three-minute timeout. You can use **Check local model** after starting Ollama. Advanced users can set `MELODY_MODEL` before starting the app to test another installed Ollama model that supports structured output; Qwen3-8B is the tested default. See [Ollama structured outputs](https://docs.ollama.com/capabilities/structured-outputs) and the [Qwen3-8B model page](https://ollama.com/library/qwen3:8b). This prototype is an editing experiment; listening comparisons determine whether its suggestions are useful.
 
 ## Save and reopen a composition
 
@@ -95,7 +109,7 @@ Two chords joined by an arrow within one bar each occupy two beats. The selected
 - Three selectable ideas, read-only melody piano roll, play/stop and MIDI export.
 - Generation and audio run in your browser. Save/Open uses the loopback-only Node server and the local data/ directory. Nothing is sent to an external service or automatically saved.
 
-No trained model is used. The eight bars now follow a fixed phrase plan:
+The core generator uses musical rules. The eight bars follow a fixed phrase plan:
 
 - **Bars 1–2 — Question:** establish a short motif, with an open ending and a breathing space.
 - **Bars 3–4 — Variation:** return to the rhythm and outline with a small ending change.
@@ -108,7 +122,7 @@ Rhythms include eighth notes, longer notes, offbeat entries within the bar and w
 
 Generate fresh ideas after reloading to hear these changes. Existing arrangement fitting and chord editing keep the rest of the workflow intact.
 
-This is a controllable starting point for hearing whether the workflow helps you compose. It does not guarantee compelling melodies. A message flags chord notes outside the selected scale, but chords are accepted as written. An ending can remain open if your last chord does not contain the tonic. There is no scoring model, sophisticated voice leading, MIDI import, note editing, keyboard recording or AI generation yet. Some ideas may sound similar.
+This is a controllable starting point for hearing whether the workflow helps you compose. It does not guarantee compelling melodies. A message flags chord notes outside the selected scale, but chords are accepted as written. An ending can remain open if your last chord does not contain the tonic. There is no scoring model, sophisticated voice leading, MIDI import, note editing, keyboard recording or model training yet. Optional Qwen refinement edits the rule-generated melody as described above. Some ideas may sound similar.
 
 ## Next iteration: listen first
 
@@ -134,3 +148,5 @@ Arrangement tests cover all supported roots in major and minor, unchanged source
 - `project.js`, `project.test.js`: versioned project files, validation, complete workspace restoration and MIDI round-trip checks.
 
 - `server.js`, `server.test.js`: dependency-free local server, project listing/save/open API, file persistence and access-boundary checks.
+
+- `refinement.js`, `refinement.test.js`, `local-model.js`: conservative edit catalogues, revision validation, local Qwen requests, comparison/keep helpers and model-protocol tests.
