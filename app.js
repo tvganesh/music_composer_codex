@@ -1,11 +1,13 @@
-import { compose, midiBytes, noteName, ROOTS, parseChords } from './composer.js?v=0.5.0';
-import { scaleInfo, scalePitches, matchingChords } from './scales.js?v=0.5.0';
-import { arrange } from './arrangement.js?v=0.5.0';
-import { chordChoices, changeChord } from './chord-edit.js?v=0.5.0';
+import { compose, midiBytes, noteName, ROOTS, parseChords } from './composer.js?v=0.6.1';
+import { scaleInfo, scalePitches, matchingChords } from './scales.js?v=0.6.1';
+import { arrange } from './arrangement.js?v=0.6.1';
+import { chordChoices, changeChord } from './chord-edit.js?v=0.6.1';
+import { saveProject, openProject, MAX_PROJECT_BYTES } from './project.js?v=0.6.1';
 const $ = id => document.getElementById(id);
 let ideas = [], selected = 0, audio, voices = [], timer, frame;
 let song = null, sectionIndex = -1, playbackVersion = 0;
 let editingEvent = -1, draftSong = null, undoStack = [];
+let projectSaving = false;
 const currentPiece = () => sectionIndex < 0 ? ideas[selected] : (draftSong || song).sections[sectionIndex];
 function resetEdits() { editingEvent = -1; draftSong = null; undoStack = []; }
 function closeEditor() { editingEvent = -1; draftSong = null; }
@@ -86,6 +88,8 @@ function renderChordEditor() {
   $('chord-editor').hidden = !visible;
   $('undo').disabled = !undoStack.length;
   $('export').disabled = !!draftSong; $('export-song').disabled = !!draftSong; $('play-song').disabled = !!draftSong;
+  $('save-project').disabled = !!draftSong || projectSaving;
+  $('save-project').title = draftSong ? 'Keep or discard the chord preview before saving.' : 'Save your ideas, arrangement and kept chord edits to data/.';
   if (!visible) return;
   const section = song.sections[sectionIndex], event = section.events[editingEvent];
   $('chord-editor-title').textContent = `${section.name} · bar ${Math.floor(event.start / 4) + 1} · ${event.chord.name}`;
@@ -190,6 +194,66 @@ function download(piece, label) {
 }
 $('export').onclick = () => download(currentPiece(), sectionIndex < 0 ? `idea-${selected + 1}` : currentPiece().name.replaceAll(' ', '-'));
 $('export-song').onclick = () => download(song, `song-${song.level}`);
+async function projectRequest(url, options) {
+  const response = await fetch(url, options);
+  let result;
+  try { result = await response.json(); } catch { throw new Error('Stop the old Python server and run npm start to use the data/ folder.'); }
+  if (!response.ok) throw new Error(result.error || 'The local project server is unavailable. Run npm start.');
+  return result;
+}
+async function refreshProjects() {
+  const { projects } = await projectRequest('/api/projects');
+  $('saved-projects').replaceChildren();
+  for (const project of projects) {
+    const option = document.createElement('option'); option.value = project.name; option.textContent = project.name; $('saved-projects').append(option);
+  }
+  if (!projects.length) { const option = document.createElement('option'); option.value = ''; option.textContent = 'No saved projects yet'; $('saved-projects').append(option); }
+  $('load-project').disabled = !projects.length;
+}
+function restoreWorkspace(state) {
+  stop(); ideas = state.ideas; selected = state.selected; song = state.song; sectionIndex = state.sectionIndex; resetEdits();
+  for (const field of ['key', 'scale', 'chords', 'tempo']) $(field).value = state.inputs[field];
+  $('harmony').value = state.harmony; $('accompaniment').checked = state.accompaniment;
+  $('error').textContent = ''; updateScaleGuide(); render(); $('project-browser').hidden = true;
+}
+$('save-project').onclick = async () => {
+  if (draftSong || projectSaving) return;
+  projectSaving = true; $('save-project').disabled = true;
+  try {
+    const state = { ideas, selected, song, sectionIndex, harmony:$('harmony').value, accompaniment:$('accompaniment').checked,
+      inputs:{ key:$('key').value, scale:$('scale').value, chords:$('chords').value, tempo:$('tempo').value } };
+    const saved = await projectRequest('/api/projects', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:saveProject(state) });
+    $('project-status').textContent = `Saved to ${saved.path}. Each save creates a new file.`;
+    if (!$('project-browser').hidden) await refreshProjects().catch(() => {});
+  } catch (error) { $('project-status').textContent = `Could not save project: ${error.message}`; }
+  finally { projectSaving = false; $('save-project').disabled = !!draftSong; }
+};
+$('open-project').onclick = async () => {
+  $('project-browser').hidden = false; $('load-project').disabled = true; $('saved-projects').replaceChildren();
+  try { await refreshProjects(); $('project-status').textContent = 'Choose a saved project from data/. Save your current workspace first if you want to keep it.'; }
+  catch (error) { $('project-status').textContent = `Could not list projects: ${error.message}`; }
+};
+$('close-project-browser').onclick = () => { $('project-browser').hidden = true; };
+$('import-project').onclick = () => $('project-file').click();
+$('load-project').onclick = async () => {
+  const name = $('saved-projects').value; if (!name) return;
+  try {
+    const doc = await projectRequest(`/api/projects/${encodeURIComponent(name)}`);
+    restoreWorkspace(openProject(JSON.stringify(doc)));
+    $('project-status').textContent = `Opened data/${name}.`;
+  } catch (error) { $('project-status').textContent = `Could not open project: ${error.message} Your current work is unchanged.`; }
+};
+$('project-file').onchange = async () => {
+  const file = $('project-file').files[0]; if (!file) return;
+  try {
+    if (file.size > MAX_PROJECT_BYTES) throw new Error('Project files must be smaller than 2 MB.');
+    const state = openProject(await file.text());
+    // Validate the complete file before replacing any current work or stopping playback.
+    restoreWorkspace(state);
+    $('project-status').textContent = 'Project imported. Save project to keep a copy in data/.';
+  } catch (error) { $('project-status').textContent = `Could not open project: ${error.message} Your current work is unchanged.`; }
+  finally { $('project-file').value = ''; }
+};
 window.addEventListener('pagehide', stop);
 function updateScaleGuide() {
   const key = $('key').value, scale = $('scale').value;

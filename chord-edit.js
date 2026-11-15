@@ -1,5 +1,5 @@
-import { ROOTS, parseChords } from './composer.js?v=0.5.0';
-import { modalColour } from './scales.js?v=0.5.0';
+import { ROOTS, parseChords } from './composer.js?v=0.6.1';
+import { modalColour } from './scales.js?v=0.6.1';
 
 const names = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 const mod = n => (n % 12 + 12) % 12;

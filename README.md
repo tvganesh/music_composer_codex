@@ -1,4 +1,4 @@
-# Sketch Composer · v0.5.0
+# Sketch Composer · v0.6.1
 
 A small local composer that turns a key, scale and chord progression into three eight-bar melody ideas. Listen, compare, and export editable MIDI for Logic Pro.
 
@@ -9,10 +9,10 @@ The second iteration develops a selected idea into a fixed 32-bar song: **Intro 
 From this folder, run:
 
 ```sh
-python3 -m http.server 8000 --bind 127.0.0.1
+npm start
 ```
 
-Open **http://127.0.0.1:8000** in a modern browser. Keep the terminal running; press Ctrl+C to stop. If you have Node installed, `npm start` runs the same command. There are no packages to install, accounts, API keys, model downloads or build steps. Serve the folder rather than opening the HTML file directly, because the JavaScript uses modules.
+Requires Node 18 or newer. Open **http://127.0.0.1:8000** in a modern browser. Keep the terminal running; press Ctrl+C to stop. There are no packages to install, accounts, API keys, model downloads or build steps. The small Node server serves the app and writes projects into `data/` beside `server.js`, regardless of the terminal’s working directory. If the old Python static server is running, stop it with Ctrl+C before starting this server. The Python static server cannot save projects to this folder. Optional: `PORT=8001 npm start` uses another port.
 
 ## Try it
 
@@ -21,7 +21,15 @@ Open **http://127.0.0.1:8000** in a modern browser. Keep the terminal running; p
 3. Try **C major** with **C G Am F**, then generate again. Each click creates fresh ideas.
 4. Download a MIDI and import it into Logic Pro. The file contains named **Melody** and **Chords** tracks, tempo and 4/4 time. Assign instruments there. The preview sound is a basic oscillator synth.
 
-Changing inputs takes effect when you generate; the displayed key, tempo, chords and export continue to describe the selected generated idea until then. The chords checkbox affects preview only; MIDI always includes both tracks. Downloads are not project saves.
+Changing inputs takes effect when you generate; the displayed key, tempo, chords and export continue to describe the selected generated idea until then. The chords checkbox affects preview only; MIDI always includes both tracks. MIDI downloads are not project saves; use **Save project** to resume in this app later.
+
+## Save and reopen a composition
+
+**Save project** at the top of the page writes a JSON file directly into the project’s `data/` directory. Each save uses a unique filename and preserves previous saved versions. The status message shows the relative file path. Saved JSON files are ignored by Git by default; the empty folder is retained with `.gitkeep`. It stores all three ideas, the selected idea, the complete arrangement and kept chord edits, the selected section, the harmony level, the chords playback toggle and the sketch input fields (including edits not yet generated). The actual notes are saved, so opening a project does not regenerate your music with a newer version of the engine.
+
+Use **Open project**, choose a saved file from the `data/` list, then click **Open selected project** to restore the workspace. **Import project file…** opens a previously downloaded JSON file; click Save project afterwards to store it in `data/`. You can then listen, make further chord edits, save another project file or export MIDI as usual. Opening replaces the current workspace; save your current work first if you want to keep it. Invalid files are checked before replacing any music. The current format supports files up to 2 MB.
+
+Keep or discard a pending chord preview before saving. Playback, unkept previews and Undo history are not saved; opening starts a fresh Undo history for your restored arrangement. All project files stay on your Mac. There is no automatic saving: click Save project before refreshing or closing the page. MIDI remains the exchange format for Logic Pro; JSON is the editable project format for this app.
 
 ## Explore scales and modes
 
@@ -75,7 +83,7 @@ After arranging an idea, select a section and click a chord above the piano roll
 
 Click **Keep this change** to apply it, or **Discard preview** to return to your arrangement. Closing the editor or selecting another chord/section also discards the unkept preview. Downloads and whole-song playback are disabled while a preview is pending. Normal Play replays the preview. Kept changes appear in section and full-song playback and MIDI exports.
 
-**Undo chord change** reverses the most recent kept change, including its melody, and supports multiple steps. Only the selected chord's time span changes; other chords and sections stay intact. In richer arrangements this may be half a bar. The original idea remains untouched. Switching ideas, generating again, or rebuilding the arrangement clears chord edits and Undo history. Edits are kept only in the current browser session; download MIDI before leaving.
+**Undo chord change** reverses the most recent kept change, including its melody, and supports multiple steps. Only the selected chord's time span changes; other chords and sections stay intact. In richer arrangements this may be half a bar. The original idea remains untouched. Switching ideas, generating again, or rebuilding the arrangement clears chord edits and Undo history. Save a project before leaving to preserve your ideas, arrangement and kept edits.
 
 Two chords joined by an arrow within one bar each occupy two beats. The selected idea's rhythm and contour provide the melody template. Strong or long notes move to nearby chord tones; featured advanced chords use chord tones throughout. Sustained notes split at chord changes as needed. The chorus shifts the melodic register up an octave before fitting its notes; the ending holds the tonic over the tonic chord. This is conservative reharmonisation, not a model trained on songs. Nearest-note adjustment can change the contour, and these template suggestions still need listening and musical judgement.
 
@@ -85,7 +93,7 @@ Two chords joined by an arrow within one bar each occupy two beats. The selected
 - Eleven scale/mode options. Explicit chord tones can extend outside the selected scale; blues generation keeps the melody within its six-note collection over separate minor-key accompaniment. For example, E major supplies G♯ in A minor.
 - Chord symbols: major (`C`), minor (`Am`), diminished (`Bdim`), augmented (`Caug`), dominant seventh (`G7`), major seventh (`Cmaj7`), minor seventh (`Dm7`). Sharps and flats supported. Separate chords using spaces, commas, arrows or `|`.
 - Three selectable ideas, read-only melody piano roll, play/stop and MIDI export.
-- Generation and audio run entirely in your browser. Nothing is uploaded or automatically saved.
+- Generation and audio run in your browser. Save/Open uses the loopback-only Node server and the local data/ directory. Nothing is sent to an external service or automatically saved.
 
 No trained model is used. The eight bars now follow a fixed phrase plan:
 
@@ -100,7 +108,7 @@ Rhythms include eighth notes, longer notes, offbeat entries within the bar and w
 
 Generate fresh ideas after reloading to hear these changes. Existing arrangement fitting and chord editing keep the rest of the workflow intact.
 
-This is a controllable starting point for hearing whether the workflow helps you compose. It does not guarantee compelling melodies. A message flags chord notes outside the selected scale, but chords are accepted as written. An ending can remain open if your last chord does not contain the tonic. There is no scoring model, sophisticated voice leading, project storage, MIDI import, note editing, keyboard recording or AI generation yet. Some ideas may sound similar.
+This is a controllable starting point for hearing whether the workflow helps you compose. It does not guarantee compelling melodies. A message flags chord notes outside the selected scale, but chords are accepted as written. An ending can remain open if your last chord does not contain the tonic. There is no scoring model, sophisticated voice leading, MIDI import, note editing, keyboard recording or AI generation yet. Some ideas may sound similar.
 
 ## Next iteration: listen first
 
@@ -122,3 +130,7 @@ Arrangement tests cover all supported roots in major and minor, unchanged source
 - `scales.js`, `scales.test.js`: shared scale definitions, matching chord progressions, diatonic harmonisation, mode colours and all-key phrase/arrangement checks.
 
 - `phrases.test.js`: recurring rhythms, rests, question/answer endings, leap limits, accents and preservation of breathing spaces in arrangements.
+
+- `project.js`, `project.test.js`: versioned project files, validation, complete workspace restoration and MIDI round-trip checks.
+
+- `server.js`, `server.test.js`: dependency-free local server, project listing/save/open API, file persistence and access-boundary checks.

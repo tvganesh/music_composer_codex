@@ -2,11 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Sketch Composer</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=0.5.0">
+  <title>Sketch Composer</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=0.6.1">
 </head>
 <body>
   <main>
-    <header><span class="eyebrow">A SMALL COMPOSING WORKSPACE · V0.5.0</span><h1>A sketch into a melody.</h1><p>Find an idea, shape a song around it, then take it into Logic Pro.</p></header>
+    <header><span class="eyebrow">A SMALL COMPOSING WORKSPACE · V0.6.1</span><h1>A sketch into a melody.</h1><p>Find an idea, shape a song around it, then take it into Logic Pro.</p></header>
+    <div class="project-actions" role="group" aria-label="Project files">
+      <button id="save-project" type="button">Save project</button><button id="open-project" type="button">Open project…</button>
+      <input id="project-file" type="file" accept=".json,application/json" hidden aria-label="Choose a Sketch Composer project">
+      <span class="hint">Projects save in this app’s data/ folder. Opening replaces this workspace.</span>
+    </div>
+    <p id="project-status" class="hint" role="status" aria-live="polite"></p>
+    <section id="project-browser" class="project-browser" hidden aria-label="Saved projects">
+      <label>Saved in data/<select id="saved-projects" aria-label="Choose a saved project"></select></label>
+      <button id="load-project" type="button" disabled>Open selected project</button>
+      <button id="import-project" type="button">Import project file…</button>
+      <button id="close-project-browser" type="button">Close</button>
+    </section>
     <div class="workspace">
       <section class="panel inputs" aria-labelledby="sketch-title">
         <h2 id="sketch-title">Your musical sketch</h2>
@@ -44,7 +56,7 @@
         <section id="chord-editor" class="chord-editor" hidden aria-labelledby="chord-editor-title">
           <h3 id="chord-editor-title">Try a chord</h3><p id="chord-editor-help" class="hint"></p>
           <div id="chord-choices" class="chord-choices"></div>
-          <div id="preview-actions" hidden><p class="hint">Preview only. Keep this change to include it in your MIDI export.</p><button id="keep-chord" type="button" class="primary">Keep this change</button> <button id="discard-chord" type="button">Discard preview</button></div>
+          <div id="preview-actions" hidden><p class="hint">Preview only. Keep or discard this change before saving a project or exporting MIDI.</p><button id="keep-chord" type="button" class="primary">Keep this change</button> <button id="discard-chord" type="button">Discard preview</button></div>
           <button id="close-editor" type="button">Close chord choices</button>
         </section>
         <div class="roll-wrap"><svg id="roll" viewBox="0 0 880 280" role="img" aria-label="Melody piano roll: pitch vertically, eight bars horizontally"></svg></div>
@@ -54,6 +66,6 @@
     </div>
     <footer>Built from musical rules: repeating rhythms, melodic contours and chord tones. Preview uses a simple synth; choose your instruments in Logic Pro. <span>Nothing is uploaded.</span></footer>
   </main>
-  <script type="module" src="app.js?v=0.5.0"></script>
+  <script type="module" src="app.js?v=0.6.1"></script>
 </body>
 </html>

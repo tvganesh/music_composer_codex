@@ -1,5 +1,5 @@
-import { ROOTS, parseChords } from './composer.js?v=0.5.0';
-import { isMinorScale, scaleChord, scalePitches, scaleSeventh, modalColour } from './scales.js?v=0.5.0';
+import { ROOTS, parseChords } from './composer.js?v=0.6.1';
+import { isMinorScale, scaleChord, scalePitches, scaleSeventh, modalColour } from './scales.js?v=0.6.1';
 
 const SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const FLATS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
