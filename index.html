@@ -2,19 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Sketch Composer</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=0.3.1">
+  <title>Sketch Composer</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=0.4.1">
 </head>
 <body>
   <main>
-    <header><span class="eyebrow">A SMALL COMPOSING WORKSPACE · V0.3.1</span><h1>A sketch into a melody.</h1><p>Find an idea, shape a song around it, then take it into Logic Pro.</p></header>
+    <header><span class="eyebrow">A SMALL COMPOSING WORKSPACE · V0.4.1</span><h1>A sketch into a melody.</h1><p>Find an idea, shape a song around it, then take it into Logic Pro.</p></header>
     <div class="workspace">
       <section class="panel inputs" aria-labelledby="sketch-title">
         <h2 id="sketch-title">Your musical sketch</h2>
         <form id="sketch">
           <div class="pair"><label>Key<select id="key"><option>C</option><option>Db</option><option>D</option><option>Eb</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>Ab</option><option selected>A</option><option>Bb</option><option>B</option></select></label>
-          <label>Scale<select id="scale"><option value="minor">Minor</option><option value="major">Major</option></select></label></div>
+          <label>Scale / mode<select id="scale" aria-describedby="scale-details"><option value="major">Major (Ionian)</option><option value="minor" selected>Natural minor (Aeolian)</option><option value="harmonic-minor">Harmonic minor</option><option value="melodic-minor">Melodic minor (jazz)</option><option value="dorian">Dorian</option><option value="phrygian">Phrygian</option><option value="lydian">Lydian</option><option value="mixolydian">Mixolydian</option><option value="locrian">Locrian</option><option value="blues">Minor blues</option><option value="hijaz">Middle Eastern · Hijaz-inspired</option></select></label></div>
+          <p class="hint" id="scale-details"></p><button id="matching-chords" type="button">Use matching chords</button>
           <label>Chord progression<input id="chords" value="Am F C E" autocomplete="off" spellcheck="false" aria-describedby="chord-help"></label>
-          <p class="hint" id="chord-help">One chord per bar, repeated to fill 8 bars. Use 1–8 chords: major, minor, dim, 7, maj7 or m7.</p>
+          <p class="hint" id="chord-help">One chord per bar, repeated to fill 8 bars. Use 1–8 chords: major, minor, dim, aug, 7, maj7 or m7.</p>
+          <p class="hint" id="scale-chord-check" role="status"></p>
           <label>Tempo <span class="unit">BPM</span><input id="tempo" type="number" min="40" max="200" value="90" required></label>
           <button class="primary" type="submit">Generate 3 ideas <span aria-hidden="true">↗</span></button>
           <p class="hint">8 bars · 4/4 time · melody + chords</p>
@@ -25,7 +27,7 @@
         <div class="result-heading"><div><span class="eyebrow">YOUR IDEAS</span><h2 id="result-title">A little room to explore.</h2></div><span id="details" class="badge"></span></div>
         <div id="ideas" class="ideas" role="group" aria-label="Choose a melody"></div>
         <div class="arrange-controls"><label>Song harmony<select id="harmony" aria-describedby="harmony-help"><option value="simple">Simple · core progression</option><option value="intermediate" selected>Intermediate · a little colour</option><option value="rich">Richer · more adventurous</option></select></label><button id="arrange" type="button">Arrange selected idea ↗</button></div>
-        <p class="hint" id="harmony-help">Intermediate adds just two seventh chords and one modal chord across the song, in addition to any advanced chords you entered yourself.</p>
+        <p class="hint" id="harmony-help">Intermediate adds two seventh chords and one borrowed chord. Simple best preserves your scale or mode; richer harmony deliberately adds outside notes.</p>
         <section id="song" hidden aria-label="Suggested song arrangement">
           <h3>Intro → Verse → Chorus → Verse → Ending</h3>
           <p class="hint">32 bars. Select a section, then click a chord below to try an alternative. Changing the harmony option rebuilds the song and clears chord edits.</p>
@@ -50,6 +52,6 @@
     </div>
     <footer>Built from musical rules: repeating rhythms, melodic contours and chord tones. Preview uses a simple synth; choose your instruments in Logic Pro. <span>Nothing is uploaded.</span></footer>
   </main>
-  <script type="module" src="app.js?v=0.3.1"></script>
+  <script type="module" src="app.js?v=0.4.1"></script>
 </body>
 </html>

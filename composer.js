@@ -1,11 +1,11 @@
+import { SCALES, scaleInfo, scalePitches } from './scales.js?v=0.4.1';
 export const ROOTS = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 };
-const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
-const QUALITIES = { '': [0, 4, 7], m: [0, 3, 7], dim: [0, 3, 6], '7': [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10] };
+const QUALITIES = { '': [0, 4, 7], m: [0, 3, 7], dim: [0, 3, 6], aug: [0, 4, 8], '7': [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10] };
 export function parseChords(text) {
   const tokens = text.trim().replace(/→|->|\|/g, ',').split(/[\s,]+/).filter(Boolean);
   if (!tokens.length || tokens.length > 8) throw new Error('Enter 1–8 chords, separated by spaces or commas.');
   return tokens.map(name => {
-    const match = /^([A-G](?:#|b)?)(maj7|m7|dim|m|7)?$/.exec(name.replace(/♯/g, '#').replace(/♭/g, 'b'));
+    const match = /^([A-G](?:#|b)?)(maj7|m7|dim|aug|m|7)?$/.exec(name.replace(/♯/g, '#').replace(/♭/g, 'b'));
     if (!match || ROOTS[match[1]] === undefined) throw new Error(`Unrecognised chord: ${name}. Try Am, F, C, E, G7 or Dm7.`);
     const root = ROOTS[match[1]];
     return { name, root, tones: QUALITIES[match[2] || ''].map(n => (root + n) % 12) };
@@ -16,13 +16,14 @@ function random(seed) {
   return () => { state += 0x6D2B79F5; let t = state; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
 export function compose({ key = 'A', scale = 'minor', chords = 'Am F C E', tempo = 90, seed = 1 } = {}) {
-  if (ROOTS[key] === undefined || !SCALES[scale]) throw new Error('Choose a valid key and scale.');
+  if (ROOTS[key] === undefined || !Object.hasOwn(SCALES, scale)) throw new Error('Choose a valid key and scale.');
   if (!Number.isFinite(tempo) || tempo < 40 || tempo > 200) throw new Error('Tempo must be between 40 and 200 BPM.');
   const progression = parseChords(chords), rng = random(seed);
-  const pcs = SCALES[scale].map(n => (n + ROOTS[key]) % 12);
+  const pcs = scalePitches(ROOTS[key], scale);
   const pick = values => values[Math.floor(rng() * values.length)];
   const patterns = [[1, .5, .5, 1, 1], [.5, .5, 1, 1, 1], [1.5, .5, 1, 1], [1, 1, 2]];
   const rhythms = [pick(patterns), pick(patterns)];
+  if (!['major', 'minor'].includes(scale)) rhythms[1] = [1, .5, .5, 1, 1];
   const contour = Array.from({ length: 6 }, () => pick([-2, -1, 0, 1, 2]));
   const melody = [], harmony = [];
   let previous = 69 + ROOTS[key] - 9;
@@ -38,7 +39,9 @@ export function compose({ key = 'A', scale = 'minor', chords = 'Am F C E', tempo
     rhythm.forEach((duration, i) => {
       const final = bar === 7 && i === rhythm.length - 1;
       // Chord tones anchor beats 1 and 3; scale tones connect the anchors.
-      const allowed = final ? [ROOTS[key]] : (beat === 0 || beat === 2 ? chord.tones : pcs);
+      const bluesAnchors = chord.tones.filter(pc => pcs.includes(pc));
+      const anchors = scale === 'blues' ? (bluesAnchors.length ? bluesAnchors : pcs) : chord.tones;
+      const allowed = final ? [ROOTS[key]] : (beat === 0 || beat === 2 ? anchors : pcs);
       const target = previous + contour[i % contour.length] * (bar >= 4 && bar < 6 ? 2 : 1);
       const candidates = Array.from({ length: 25 }, (_, n) => n + 60).filter(n => allowed.includes(n % 12));
       const ranked = candidates.map(pitch => ({ pitch, score: Math.abs(pitch - target) + rng() * 2.5 })).sort((a, b) => a.score - b.score);
@@ -47,6 +50,21 @@ export function compose({ key = 'A', scale = 'minor', chords = 'Am F C E', tempo
       previous = pitch;
       beat += duration;
     });
+  }
+  // Make the scale's colour audible in two short passing notes, not a scale run.
+  const colour = (ROOTS[key] + scaleInfo(scale).colour) % 12;
+  for (const bar of [1, 5]) {
+    const note = melody.find(n => Math.floor(n.start / 4) === bar && n.start % 4 !== 0 && n.start % 4 !== 2 && n.duration < 1);
+    if (note) {
+      const candidates = Array.from({ length:25 }, (_, i) => 60 + i).filter(p => p % 12 === colour);
+      note.pitch = candidates.sort((a, b) => Math.abs(a - note.pitch) - Math.abs(b - note.pitch))[0];
+      if (scale === 'blues') {
+        const next = melody[melody.indexOf(note) + 1];
+        // The flattened fifth is a passing colour, followed by a neighbouring fourth/fifth.
+        const neighbours = [note.pitch - 1, note.pitch + 1].filter(p => p >= 60 && p <= 84);
+        if (next && neighbours.length) next.pitch = neighbours.sort((a, b) => Math.abs(a - next.pitch) - Math.abs(b - next.pitch))[0];
+      }
+    }
   }
   return { key, scale, tempo, seed, bars: 8, beats: 32, progression, melody, harmony };
 }

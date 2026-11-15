@@ -1,6 +1,7 @@
-import { compose, midiBytes, noteName } from './composer.js';
-import { arrange } from './arrangement.js';
-import { chordChoices, changeChord } from './chord-edit.js';
+import { compose, midiBytes, noteName, ROOTS, parseChords } from './composer.js?v=0.4.1';
+import { scaleInfo, scalePitches, matchingChords } from './scales.js?v=0.4.1';
+import { arrange } from './arrangement.js?v=0.4.1';
+import { chordChoices, changeChord } from './chord-edit.js?v=0.4.1';
 const $ = id => document.getElementById(id);
 let ideas = [], selected = 0, audio, voices = [], timer, frame;
 let song = null, sectionIndex = -1, playbackVersion = 0;
@@ -25,7 +26,7 @@ function stop() {
 }
 function render() {
   stop(); const piece = currentPiece();
-  $('details').textContent = `${piece.key} ${piece.scale} · ${piece.tempo} BPM`;
+  $('details').textContent = `${piece.key} ${scaleInfo(piece.scale).label} · ${piece.tempo} BPM`;
   $('ideas').replaceChildren();
   ideas.forEach((_, i) => {
     const button = document.createElement('button'); button.type = 'button';
@@ -180,4 +181,25 @@ function download(piece, label) {
 $('export').onclick = () => download(currentPiece(), sectionIndex < 0 ? `idea-${selected + 1}` : currentPiece().name.replaceAll(' ', '-'));
 $('export-song').onclick = () => download(song, `song-${song.level}`);
 window.addEventListener('pagehide', stop);
+function updateScaleGuide() {
+  const key = $('key').value, scale = $('scale').value;
+  $('scale-details').textContent = `${scaleInfo(scale).hint} Changes take effect when you generate ideas.`;
+  $('matching-chords').title = matchingChords(ROOTS[key], scale);
+  try {
+    const pcs = scalePitches(ROOTS[key], scale), chords = parseChords($('chords').value);
+    const outside = chords.some(c => c.tones.some(pc => !pcs.includes(pc)));
+    $('scale-chord-check').textContent = scale === 'blues'
+      ? 'Blues uses a six-note melody over minor-key chords; some accompaniment notes sit outside the melody scale. The blue note is used briefly.'
+      : outside
+      ? 'These chords add notes outside the selected scale. Use matching chords for a clearer scale flavour, or keep your own harmony.'
+      : 'Your chord notes fit the selected scale.';
+  } catch { $('scale-chord-check').textContent = ''; }
+}
+$('key').onchange = updateScaleGuide;
+$('scale').onchange = updateScaleGuide;
+$('chords').addEventListener('input', updateScaleGuide);
+$('matching-chords').onclick = () => {
+  $('chords').value = matchingChords(ROOTS[$('key').value], $('scale').value); updateScaleGuide();
+};
+updateScaleGuide();
 $('sketch').requestSubmit();

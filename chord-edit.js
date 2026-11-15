@@ -1,4 +1,5 @@
-import { ROOTS, parseChords } from './composer.js';
+import { ROOTS, parseChords } from './composer.js?v=0.4.1';
+import { modalColour } from './scales.js?v=0.4.1';
 
 const names = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 const mod = n => (n % 12 + 12) % 12;
@@ -10,12 +11,12 @@ export function chordChoices(song, sectionIndex, eventIndex) {
   const minor = current.tones.includes(mod(current.root + 3));
   const simple = make(current.root, minor ? 'm' : '');
   const warm = make(current.root, minor ? 'm7' : current.root === mod(ROOTS[song.key] + 7) ? '7' : 'maj7');
-  const modal = make(ROOTS[song.key] + 5, song.scale === 'minor' ? '' : 'm');
+  const modal = modalColour(ROOTS[song.key], song.scale);
   const signature = chord => [...chord.tones].sort((a, b) => a - b).join(',');
   return [
     { label:'Keep it simple', chord:simple, explanation:'A straightforward three-note chord on the same root.' },
     { label:'Add warmth', chord:warm, explanation:'A seventh adds a little more colour.' },
-    { label:'Add contrast', chord:modal, explanation:song.scale === 'minor' ? 'A brighter chord borrowed from Dorian.' : 'A darker chord borrowed from the parallel minor.' }
+    { label:'Add contrast', chord:modal, explanation:modal.explanation }
   ].filter((choice, index, all) => signature(choice.chord) !== signature(current) && all.findIndex(c => signature(c.chord) === signature(choice.chord)) === index);
 }
 

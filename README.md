@@ -1,4 +1,4 @@
-# Sketch Composer · v0.3
+# Sketch Composer · v0.4.1
 
 A small local composer that turns a key, scale and chord progression into three eight-bar melody ideas. Listen, compare, and export editable MIDI for Logic Pro.
 
@@ -23,13 +23,41 @@ Open **http://127.0.0.1:8000** in a modern browser. Keep the terminal running; p
 
 Changing inputs takes effect when you generate; the displayed key, tempo, chords and export continue to describe the selected generated idea until then. The chords checkbox affects preview only; MIDI always includes both tracks. Downloads are not project saves.
 
+## Explore scales and modes
+
+Choose a key and **Scale / mode**, click **Use matching chords**, then **Generate 3 ideas**. Changing the dropdown does not overwrite your chords or regenerate your existing idea. A message explains when your own chord notes extend outside the selected scale. To compare modes clearly, keep the key and tempo the same and use matching chords for each selection.
+
+| Option | Starting character to listen for |
+| --- | --- |
+| Major (Ionian) | Familiar and bright |
+| Natural minor (Aeolian) | Darker and gentle |
+| Harmonic minor | Dramatic, with a raised seventh pulling home |
+| Melodic minor (jazz form) | Minor with raised sixth and seventh |
+| Dorian | Minor with a brighter sixth |
+| Phrygian | Tension from the lowered second |
+| Lydian | A floating raised fourth |
+| Mixolydian | Major with a relaxed lowered seventh |
+| Locrian | Unsettled, with a diminished home chord |
+| Minor blues | Six-note blues melody, with a short blue note resolving nearby |
+| Middle Eastern · Hijaz-inspired | A lowered second followed by a major third, in equal temperament |
+
+These descriptions are listening suggestions, not promises of a particular emotion or quality. Dorian and Mixolydian are useful first experiments. Locrian is deliberately less settled. Major/Ionian and Natural minor/Aeolian cover two of the seven modes; this release also adds the other five, plus harmonic minor and melodic minor. Rotations of harmonic and melodic minor are outside this iteration.
+
+**Minor blues** uses `1, b3, 4, b5, 5, b7`. Its suggested accompaniment is a simple minor-key `i–iv–v–i` progression. Accompaniment notes can lie outside the six-note melody scale; melody generation keeps to the blues scale while choosing shared chord tones for anchors where available. The added b5 passing notes resolve by a semitone to a nearby fourth or fifth. This remains an eight-bar sketch with straight timing, not an automatic twelve-bar blues arrangement. See [Open Music Theory's blues reference](https://viva.pressbooks.pub/openmusictheory/chapter/blues-melodies-and-the-blues-scale/).
+
+**Hijaz-inspired** uses `1, b2, 3, 4, 5, b6, b7` (the equal-tempered Phrygian dominant collection), with a matching `I–bII–iv–I` progression. Try **E** with **E F Am E**. The label describes a simplified colour for this Western MIDI/synth app, not a single universal Arabian scale or a full traditional maqam. Microtonal tuning, traditional melodic development and ornamentation are outside this version. [MaqamWorld's Hijaz page](https://www.maqamworld.com/en/maqam/hijaz.php) describes Hijaz's component ajnas and provides listening examples.
+
+**Melodic minor uses the jazz form in both directions.** It does not switch to natural minor while descending as in the classical convention. See [Open Music Theory's minor-scale reference](https://viva.pressbooks.pub/openmusictheory/chapter/minor-scales/) and [Steps to Music Theory's modes reference](https://odp.library.tamu.edu/stepstomusictheory/chapter/modes/) for background.
+
+The generator keeps repeated rhythms, chord-tone anchors and a final home note. New-scale phrases feature a characteristic scale note in short passing notes. **Simple** arrangements use chords from your chosen scale (unless your supplied sketch already contains outside notes). **Intermediate** adds two sevenths and one borrowed chord; for new scales the added sevenths come from that scale. **Richer** intentionally introduces more outside harmony. The melody adapts to those chords, so the resulting song need not stay strictly in one mode. Existing major/minor tonal treatment is retained for intermediate/richer arrangements. Unsupported seventh chord qualities stay as triads rather than introducing a larger chord vocabulary.
+
 ## Arrange the selected idea
 
 1. Select one of the three generated ideas and click **Arrange selected idea**.
 2. Select a section to view its suggested chords, explanation of each added colour, adapted melody and piano roll. **Play** and **Download MIDI** apply to the displayed section (or the original idea when selected).
-3. Start with **Intermediate** (the default): just two dominant sevenths, at the end of the intro and before the final tonic, plus one modal triad in the chorus. All added chords last a full bar. No secondary dominants, diminished approaches or chromatic passing chords are added in this mode. Chords you explicitly entered, including any sevenths, remain in the verse sketch, so they may add to this total. In minor, the intermediate pre-dominant is a minor iv triad to keep the accompaniment straightforward.
+3. Start with **Intermediate** (the default): two seventh chords, at the end of the intro and before the final tonic, plus one modal triad in the chorus. All added chords last a full bar. No secondary dominants, diminished approaches or chromatic passing chords are added in this mode. Chords you explicitly entered, including any sevenths, remain in the verse sketch, so they may add to this total. In minor, the intermediate pre-dominant is a minor iv triad to keep the accompaniment straightforward.
 
-Compare **Simple**, **Intermediate** and **Richer** song harmony. Changing this option rebuilds the song from the same original idea. Simple still preserves advanced chords you entered yourself and uses basic functional cadences. Downloaded song filenames identify the harmony level.
+Compare **Simple**, **Intermediate** and **Richer** song harmony. Changing this option rebuilds the song from the same original idea. Simple preserves your verse sketch and builds the other sections using the selected scale. Downloaded song filenames identify the harmony level.
 4. Use **Play whole song** or **Download song MIDI** for the entire 32-bar arrangement. Song MIDI includes Intro, Verse 1, Chorus, Verse 2 and Ending markers plus separate melody/chord tracks.
 5. Use **Back to original idea** to compare the untouched source. Selecting another idea or generating new ideas clears the previous arrangement.
 
@@ -54,14 +82,14 @@ Two chords joined by an arrow within one bar each occupy two beats. The selected
 ## Core sketch scope (retained from v0.1)
 
 - Eight bars, 4/4, one chord per bar. A 1–8 chord progression repeats to fill the eight bars; incomplete repeats stop at bar eight.
-- Major or natural minor as the melody's scale, with explicit chord tones allowed outside that scale. For example, E major supplies G♯ in A minor.
-- Chord symbols: major (`C`), minor (`Am`), diminished (`Bdim`), dominant seventh (`G7`), major seventh (`Cmaj7`), minor seventh (`Dm7`). Sharps and flats supported. Separate chords using spaces, commas, arrows or `|`.
+- Eleven scale/mode options. Explicit chord tones can extend outside the selected scale; blues generation keeps the melody within its six-note collection over separate minor-key accompaniment. For example, E major supplies G♯ in A minor.
+- Chord symbols: major (`C`), minor (`Am`), diminished (`Bdim`), augmented (`Caug`), dominant seventh (`G7`), major seventh (`Cmaj7`), minor seventh (`Dm7`). Sharps and flats supported. Separate chords using spaces, commas, arrows or `|`.
 - Three selectable ideas, read-only melody piano roll, play/stop and MIDI export.
 - Generation and audio run entirely in your browser. Nothing is uploaded or automatically saved.
 
 No trained model is used. Two rhythm patterns and a short pitch contour are reused across the eight bars; chord tones anchor bar openings and available third beats, with nearby scale tones connecting them. Bars five and six widen the contour, and the final note returns to the key's tonic. A seed makes each generated idea reproducible in code.
 
-This is a controllable starting point for hearing whether the workflow helps you compose. It does not guarantee compelling melodies. Chords are accepted as written without checking whether they belong to the selected key. The final tonic may clash with an arbitrary final chord. There is no scoring model, sophisticated voice leading, project storage, MIDI import, note editing, keyboard recording or AI generation yet. Some ideas may sound similar.
+This is a controllable starting point for hearing whether the workflow helps you compose. It does not guarantee compelling melodies. A message flags chord notes outside the selected scale, but chords are accepted as written. The final tonic may clash with an arbitrary final chord. There is no scoring model, sophisticated voice leading, project storage, MIDI import, note editing, keyboard recording or AI generation yet. Some ideas may sound similar.
 
 ## Next iteration: listen first
 
@@ -79,3 +107,5 @@ Arrangement tests cover all supported roots in major and minor, unchanged source
 - `composer.test.js`: engine and export checks.
 - `arrangement.js`, `arrangement.test.js`: song form, suggested harmony, melody adaptation and arrangement checks.
 - `chord-edit.js`, `chord-edit.test.js`: chord alternatives and isolated chord/melody changes.
+
+- `scales.js`, `scales.test.js`: shared scale definitions, matching chord progressions, diatonic harmonisation, mode colours and all-key phrase/arrangement checks.
